@@ -8,7 +8,6 @@ use Arr;
 use DB;
 use Log;
 use App\Models\User;
-use App\Notifications\Welcome;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 
@@ -16,7 +15,8 @@ class UserController extends Controller
 {
     public function index()
     {
-        $user = User::get();
+        $user = User::with('roles')->get();
+        // dd($user);
         return view('user.index', [
             'users' => $user,
         ]);
