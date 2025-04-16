@@ -99,7 +99,7 @@ class UserApiController extends Controller
 
         // Check if user's email is verified.
         // In this example, we assume that a non-null email verification timestamp indicates a verified email.
-        if (is_null($user->email_verified_at)) {
+        if ($user->email_verified_at === null) {
             return response()->json([
                 'message' => 'Your email is not verified. Please verify your email using the OTP sent to you.'
             ], 403);
@@ -110,7 +110,7 @@ class UserApiController extends Controller
 
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'Bearer',
+            'user' => $user,
         ]);
     }
 
@@ -149,5 +149,38 @@ class UserApiController extends Controller
         ]);
 
         return response()->json(['message' => 'Email successfully verified.']);
+    }
+    /**
+     * Resend OTP to the user's email.
+     */
+    public function resendOTP(Request $request)
+    {
+        // Validate the email.
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        // Generate a new OTP and expiry time.
+        $otp = random_int(100000, 999999);
+        $otpExpiry = Carbon::now()->addMinutes(10);
+
+        // Update the user's OTP and expiry time.
+        $user->update([
+            'email_otp' => $otp,
+            'otp_expires_at' => $otpExpiry,
+        ]);
+
+        // Resend the OTP email.
+        Mail::to($user->email)->send(new OtpMail($user, $otp));
+
+        return response()->json([
+            'message' => 'A new OTP has been sent to your email address.'
+        ]);
     }
 }
