@@ -135,12 +135,12 @@ class UserApiController extends Controller
 
         // Check if OTP is set and not expired.
         if (!$user->email_otp || !$user->otp_expires_at || Carbon::now()->gt($user->otp_expires_at)) {
-            return response()->json(['message' => 'OTP has expired. Please request a new one.'], 422);
+            return response()->json(['message' => 'OTP has expired. Please request a new one.' . $user->email_otp], 422);
         }
 
         // Verify OTP.
         if ($user->email_otp != $request->otp) {
-            return response()->json(['message' => 'Invalid OTP.'], 422);
+            return response()->json(['message' => 'Invalid OTP.' . $user->email_otp], 422);
         }
 
         // Mark email as verified.
@@ -150,7 +150,7 @@ class UserApiController extends Controller
             'otp_expires_at' => null,
         ]);
 
-        return response()->json(['message' => 'Email successfully verified.','success' => true]);
+        return response()->json(['message' => 'Email successfully verified.', 'success' => true]);
     }
     /**
      * Resend OTP to the user's email.
