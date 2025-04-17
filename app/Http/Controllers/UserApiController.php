@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Log;
 use Mail;
 
 class UserApiController extends Controller
@@ -61,7 +62,7 @@ class UserApiController extends Controller
         ]);
 
         // Generate a random 6-digit OTP code.
-        $otp = random_int(100000, 999999);
+        $otp = random_int(1000, 9999);
         $otpExpiry = Carbon::now()->addMinutes(10);
 
         // Save OTP and its expiry in the user record.
@@ -119,10 +120,11 @@ class UserApiController extends Controller
      */
     public function verifyOTP(Request $request)
     {
+        Log::info('Verifying OTP', ['request' => $request->all()]);
         // Validate OTP and email.
         $request->validate([
             'email' => 'required|email',
-            'otp' => 'required|digits:6',
+            'otp' => 'required|digits:4',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -148,7 +150,7 @@ class UserApiController extends Controller
             'otp_expires_at' => null,
         ]);
 
-        return response()->json(['message' => 'Email successfully verified.']);
+        return response()->json(['message' => 'Email successfully verified.','success' => true]);
     }
     /**
      * Resend OTP to the user's email.
@@ -167,7 +169,7 @@ class UserApiController extends Controller
         }
 
         // Generate a new OTP and expiry time.
-        $otp = random_int(100000, 999999);
+        $otp = random_int(1000, 9999);
         $otpExpiry = Carbon::now()->addMinutes(10);
 
         // Update the user's OTP and expiry time.
