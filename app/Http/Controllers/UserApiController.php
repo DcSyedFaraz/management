@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ForgotPasswordOtpMail;
 use App\Mail\OTPMail;
 use App\Models\User;
 use Carbon\Carbon;
@@ -197,5 +198,67 @@ class UserApiController extends Controller
         return response()->json([
             'message' => 'A new OTP has been sent to your email address.'
         ]);
+    }
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // generate 4‑digit OTP
+        $otp = rand(1000, 9999);
+        $user->update([
+            'email_otp' => $otp,
+            'otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        // send it
+        Mail::to($user->email)
+            ->send(new ForgotPasswordOtpMail($otp));
+
+        return response()->json([
+            'message' => 'Ein Rücksetzcode wurde an Ihre E‑Mail gesendet.',
+        ], 200);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp' => 'required|digits:4',
+            'password' => 'required|confirmed|min:8',
+        ]);
+
+        $user = User::where('email', $request->email)->firstOrFail();
+
+        // expired?
+        if (
+            !$user->email_otp
+            || !$user->otp_expires_at
+            || now()->gt($user->otp_expires_at)
+        ) {
+            return response()->json([
+                'message' => 'Der Code ist abgelaufen. Bitte fordern Sie einen neuen an.'
+            ], 422);
+        }
+
+        if ((string) $user->email_otp !== (string) $request->otp) {
+            return response()->json([
+                'message' => 'Ungültiger Rücksetzcode.'
+            ], 422);
+        }
+
+        // update password & clear OTP
+        $user->update([
+            'password' => Hash::make($request->password),
+            'email_otp' => null,
+            'otp_expires_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Passwort erfolgreich zurückgesetzt.',
+        ], 200);
     }
 }

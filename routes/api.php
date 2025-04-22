@@ -12,3 +12,6 @@ Route::any('/register', [UserApiController::class, 'register']);
 Route::post('/login', [UserApiController::class, 'login']);
 Route::post('/verify-otp', [UserApiController::class, 'verifyOTP']);
 Route::post('/resend-otp', [UserApiController::class, 'resendOTP']);
+
+Route::post('/forgot-password', [UserApiController::class, 'forgotPassword']);
+Route::post('/reset-password', [UserApiController::class, 'resetPassword']);
