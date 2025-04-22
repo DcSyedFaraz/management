@@ -16,6 +16,8 @@ return new class extends Migration {
             $table->string('phone_number')->nullable();
             $table->string('insurance_type')->nullable();
             $table->string('insurance_number')->nullable();
+            $table->string('lastName')->nullable();
+            $table->string('birthDate')->nullable();
             $table->string('plz')->nullable();
             $table->timestamps();
         });

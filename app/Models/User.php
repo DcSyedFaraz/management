@@ -28,6 +28,7 @@ class User extends Authenticatable
         'email_otp',
         'otp_expires_at',
         'email_verified_at',
+        'profile_picture',
     ];
 
     /**
@@ -51,6 +52,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+    public function getProfilePictureAttribute(?string $value): string
+    {
+        return asset("storage/{$value}");
     }
     public function userDetail()
     {

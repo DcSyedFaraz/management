@@ -25,12 +25,14 @@ class UserApiController extends Controller
                 'insurance_type' => 'nullable|string|max:100',
                 'insurance_number' => 'nullable|string|max:100',
                 'plz' => 'nullable|string|max:20',
+                'lastName' => 'nullable|string|max:20',
+                'birthDate' => 'nullable|string|max:20',
                 'profile_picture' => 'nullable|image|max:2048',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
         }
-
+        log::info('User registration data: ', $validated);
         // Handle profile picture upload if provided.
         $profilePicturePath = null;
         if ($request->hasFile('profile_picture')) {
@@ -59,6 +61,8 @@ class UserApiController extends Controller
             'insurance_type' => $request->insurance_type,
             'insurance_number' => $request->insurance_number,
             'plz' => $request->plz,
+            'birthDate' => $request->birthDate,
+            'lastName' => $request->lastName,
         ]);
 
         // Generate a random 6-digit OTP code.
@@ -79,18 +83,14 @@ class UserApiController extends Controller
         ], 201);
     }
 
-    /**
-     * Login an existing user and create a Sanctum token.
-     */
     public function login(Request $request)
     {
-        // Validate credentials.
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->with('userDetail')->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -98,15 +98,15 @@ class UserApiController extends Controller
             ]);
         }
 
-        // Check if user's email is verified.
-        // In this example, we assume that a non-null email verification timestamp indicates a verified email.
         if ($user->email_verified_at === null) {
             return response()->json([
-                'message' => 'Your email is not verified. Please verify your email using the OTP sent to you.'
+                'message' => 'Your email is not verified.',
+                'verification_required' => true,
+                'email' => $user->email,
             ], 403);
         }
 
-        // Create Sanctum token.
+        // fully verified—issue token
         $token = $user->createToken('API Token')->plainTextToken;
 
         return response()->json([
@@ -115,43 +115,56 @@ class UserApiController extends Controller
         ]);
     }
 
+
     /**
      * Verify user's email using OTP.
      */
     public function verifyOTP(Request $request)
     {
-        Log::info('Verifying OTP', ['request' => $request->all()]);
-        // Validate OTP and email.
         $request->validate([
             'email' => 'required|email',
             'otp' => 'required|digits:4',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->with('userDetail')->firstOrFail();
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
+        // expired or missing?
+        if (
+            !$user->email_otp
+            || !$user->otp_expires_at
+            || now()->gt($user->otp_expires_at)
+        ) {
+            return response()->json([
+                'message' => 'OTP has expired. Please request a new one.'
+            ], 422);
         }
 
-        // Check if OTP is set and not expired.
-        if (!$user->email_otp || !$user->otp_expires_at || Carbon::now()->gt($user->otp_expires_at)) {
-            return response()->json(['message' => 'OTP has expired. Please request a new one.' . $user->email_otp], 422);
-        }
-
-        // Verify OTP.
         if ($user->email_otp != $request->otp) {
-            return response()->json(['message' => 'Invalid OTP.' . $user->email_otp], 422);
+            return response()->json([
+                'message' => 'Invalid OTP.'
+            ], 422);
         }
 
-        // Mark email as verified.
+        // mark verified
         $user->update([
-            'email_verified_at' => Carbon::now(),
+            'email_verified_at' => now(),
             'email_otp' => null,
             'otp_expires_at' => null,
         ]);
 
-        return response()->json(['message' => 'Email successfully verified.', 'success' => true]);
+        // now issue token
+        $token = $user->createToken('API Token')->plainTextToken;
+
+        $data = [
+            'message' => 'Email successfully verified.',
+            'success' => true,
+            'access_token' => $token,
+            'user' => $user,
+        ];
+        log::info('User verified successfully: ', $data);
+        return response()->json($data, 200);
     }
+
     /**
      * Resend OTP to the user's email.
      */
