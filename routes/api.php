@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ConnectedUserController;
 use App\Http\Controllers\UserApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -15,3 +16,14 @@ Route::post('/resend-otp', [UserApiController::class, 'resendOTP']);
 
 Route::post('/forgot-password', [UserApiController::class, 'forgotPassword']);
 Route::post('/reset-password', [UserApiController::class, 'resetPassword']);
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get(
+        '/owners/{owner}/connected-users',
+        [ConnectedUserController::class, 'index']
+    );
+    Route::post(
+        '/owners/{owner}/connected-users',
+        [UserApiController::class, 'register']
+    );
+});

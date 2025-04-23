@@ -61,4 +61,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserDetail::class);
     }
+    public function connectedUsers()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'connected_users',
+            'owner_id',
+            'connected_user_id'
+        )->withTimestamps();
+    }
 }

@@ -5,83 +5,157 @@ namespace App\Http\Controllers;
 use App\Mail\ForgotPasswordOtpMail;
 use App\Mail\OTPMail;
 use App\Models\User;
+use Auth;
 use Carbon\Carbon;
 use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Log;
 use Mail;
+use Str;
 
 class UserApiController extends Controller
 {
     public function register(Request $request)
     {
-        // Validate incoming data.
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:8|confirmed',
-                'phone_number' => 'nullable|string|max:50',
-                'insurance_type' => 'nullable|string|max:100',
-                'insurance_number' => 'nullable|string|max:100',
-                'plz' => 'nullable|string|max:20',
-                'lastName' => 'nullable|string|max:20',
-                'birthDate' => 'nullable|string|max:20',
-                'profile_picture' => 'nullable|image|max:2048',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['errors' => $e->errors()], 422);
-        }
-        log::info('User registration data: ', $validated);
-        // Handle profile picture upload if provided.
-        $profilePicturePath = null;
-        if ($request->hasFile('profile_picture')) {
-            // Stores the file in the "profile_pictures" directory on the "public" disk.
-            $profilePicturePath = $request->file('profile_picture')->store('profile_pictures', 'public');
+        // Determine if this request is from an authenticated owner
+        $owner = Auth::user();
+        $isAddMode = (bool) $owner;
+        // Log::info('User registration data: ', $request->all());
+        // Log::info('Is add mode: ', ['isAddMode' => $isAddMode]);
+        // Log::info('Owner ID: ', ['owner_id' => $owner->id ?? null]);
+        //
+        // 1. Build dynamic validation rules
+        //
+        $rules = [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone_number' => 'nullable|string|max:50',
+            'address' => 'required|string|max:255',
+            'insurance_type' => 'nullable|string|max:100',
+            'insurance_number' => 'nullable|string|max:100',
+            'lastName' => 'nullable|string|max:20',
+            'birthDate' => 'nullable|string|max:20',
+            'plz' => 'nullable|string|max:20',
+            'profile_picture' => 'nullable|image|max:2048',
+        ];
+
+        // only for self-registration
+        if (!$isAddMode) {
+            $rules['password'] = 'required|string|min:8|confirmed';
+            $rules['password_confirmation'] = 'required|string|min:8';
         }
 
-        // Prepare user data.
-        $userData = [
+        // 2. Validate
+        try {
+            $validated = $request->validate($rules);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        //
+        // 3. If we’re adding a connected user…
+        //
+        if ($isAddMode) {
+
+            $max = config('connected.max_connected_users');
+
+            // count how many *already connected* this owner has
+            $currentCount = $owner->connectedUsers()->count();
+
+            if ($currentCount >= $max) {
+                return response()->json([
+                    'message' => "You may only connect up to {$max} users."
+                ], 422);
+            }
+
+            // 3b. No existing → create new with auto-password
+            $autoPassword = Str::random(10);
+            $profilePath = $this->storeProfilePicture($request);
+
+            $new = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($autoPassword),
+                'profile_picture' => $profilePath,
+            ]);
+
+            // details
+            $new->userDetail()->create([
+                'phone_number' => $validated['phone_number'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'insurance_type' => $validated['insurance_type'] ?? null,
+                'insurance_number' => $validated['insurance_number'] ?? null, // Ensure this handles null
+                'lastName' => $validated['lastName'] ?? null,
+                'birthDate' => $validated['birthDate'] ?? null,
+                'plz' => $validated['plz'] ?? null,
+            ]);
+
+            // attach pivot
+            $owner->connectedUsers()->attach($new->id);
+            $connected = $owner->connectedUsers()
+                ->select('users.id as id', 'users.name')    // ← prefix & alias
+                ->get();
+
+            return response()->json([
+                'connected_users' => $connected,
+            ], 201);
+        }
+
+        //
+        // 4. Self-registration flow
+        //
+        Log::info('User registration data: ', $validated);
+
+        $profilePath = $this->storeProfilePicture($request);
+
+        // create user
+        $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-        ];
-
-        // Include profile picture path if available.
-        if ($profilePicturePath) {
-            $userData['profile_picture'] = $profilePicturePath;
-        }
-
-        // Create the user.
-        $user = User::create($userData);
-
-        // Create associated user details record.
-        $user->userDetail()->create([
-            'phone_number' => $request->phone_number,
-            'insurance_type' => $request->insurance_type,
-            'insurance_number' => $request->insurance_number,
-            'plz' => $request->plz,
-            'birthDate' => $request->birthDate,
-            'lastName' => $request->lastName,
+            'profile_picture' => $profilePath,
         ]);
 
-        // Generate a random 6-digit OTP code.
-        $otp = random_int(1000, 9999);
-        $otpExpiry = Carbon::now()->addMinutes(10);
+        // details
+        $user->userDetail()->create([
+            'phone_number' => $validated['phone_number'] ?? null,
+            'insurance_type' => $validated['insurance_type'] ?? null,
+            'insurance_number' => $validated['insurance_number'] ?? null,
+            'plz' => $validated['plz'] ?? null,
+            'birthDate' => $validated['birthDate'] ?? null,
+            'lastName' => $validated['lastName'] ?? null,
+            'address' => $validated['address'] ?? null,
+        ]);
 
-        // Save OTP and its expiry in the user record.
+        // OTP generation
+        $otp = random_int(1000, 9999);
+        $expiry = Carbon::now()->addMinutes(10);
         $user->update([
             'email_otp' => $otp,
-            'otp_expires_at' => $otpExpiry,
+            'otp_expires_at' => $expiry,
         ]);
         $user->assignRole('user');
-        // Send OTP email using a custom mailable.
-        Mail::to($user->email)->send(new OtpMail($user, $otp));
+        Mail::to($user->email)->send(new \App\Mail\OtpMail($user, $otp));
 
         return response()->json([
-            'message' => 'Registration successful. An OTP has been sent to your email address for verification.'
+            'message' => 'Registration successful. Check your email for the OTP.'
         ], 201);
+    }
+
+    /**
+     * Extracted profile-picture storage for reuse.
+     */
+    protected function storeProfilePicture(Request $req): ?string
+    {
+        if (!$req->hasFile('profile_picture')) {
+            return null;
+        }
+        return $req
+            ->file('profile_picture')
+            ->store('profile_pictures', 'public');
     }
 
     public function login(Request $request)
