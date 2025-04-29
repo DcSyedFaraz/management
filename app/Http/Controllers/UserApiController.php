@@ -21,12 +21,7 @@ class UserApiController extends Controller
         // Determine if this request is from an authenticated owner
         $owner = Auth::user();
         $isAddMode = (bool) $owner;
-        // Log::info('User registration data: ', $request->all());
-        // Log::info('Is add mode: ', ['isAddMode' => $isAddMode]);
-        // Log::info('Owner ID: ', ['owner_id' => $owner->id ?? null]);
-        //
-        // 1. Build dynamic validation rules
-        //
+
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
