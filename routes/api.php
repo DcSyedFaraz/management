@@ -18,14 +18,11 @@ Route::post('/forgot-password', [UserApiController::class, 'forgotPassword']);
 Route::post('/reset-password', [UserApiController::class, 'resetPassword']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get(
-        '/owners/{owner}/connected-users',
-        [ConnectedUserController::class, 'index']
-    );
-    Route::post(
-        '/owners/{owner}/connected-users',
-        [UserApiController::class, 'register']
-    );
+
+    Route::post('/owners/users/{user}', [UserApiController::class, 'update']);
+
+    Route::get('/owners/{owner}/connected-users', [ConnectedUserController::class, 'index']);
+    Route::post('/owners/{owner}/connected-users', [UserApiController::class, 'register']);
     Route::get('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'show']);
     Route::post('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'update']);
     Route::delete('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'destroy']);

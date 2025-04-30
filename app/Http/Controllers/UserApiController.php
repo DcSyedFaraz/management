@@ -9,6 +9,7 @@ use Auth;
 use Carbon\Carbon;
 use Hash;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Log;
 use Mail;
@@ -133,13 +134,75 @@ class UserApiController extends Controller
             'otp_expires_at' => $expiry,
         ]);
         $user->assignRole('user');
-        Mail::to($user->email)->send(new \App\Mail\OtpMail($user, $otp));
+        Mail::to($user->email)->send(new OtpMail($user, $otp));
 
         return response()->json([
             'message' => 'Registration successful. Check your email for the OTP.'
         ], 201);
     }
+    public function update(Request $request, User $user)
+    {
+        // ensure user can only update themselves (or else use a policy)
+        if (Auth::id() !== $user->id) {
+            abort(403, 'Unauthorized');
+        }
+        log::info('User update data: ', $request->all());
+        // validation rules
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+            'address' => ['required', 'string', 'max:255'],
+            'insurance_type' => ['nullable', 'string', 'max:100'],
+            'insurance_number' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:20'],
+            'birth_date' => ['nullable', 'string', 'max:20'],
+            'plz' => ['nullable', 'string', 'max:20'],
+            'profile_picture' => ['nullable', 'image', 'max:2048'],
+        ];
 
+        $validated = $request->validate($rules);
+
+        $oldPath = $user->getRawOriginal('profile_picture');
+
+        // Determine the new raw path
+        $newPath = $request->hasFile('profile_picture')
+            ? $this->storeProfilePicture($request)
+            : $oldPath;
+
+        // Log the raw values
+        Log::info('User profile_picture update (raw paths)', [
+            'user_id' => $user->id,
+            'old_profile_picture' => $oldPath,
+            'new_profile_picture' => $newPath,
+        ]);
+
+        // Persist the change (the accessor will still return URLs elsewhere)
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'profile_picture' => $newPath,
+        ]);
+
+        // update or create the related details row
+        $user->userDetail()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'phone_number' => $validated['phone_number'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'insurance_type' => $validated['insurance_type'] ?? null,
+                'insurance_number' => $validated['insurance_number'] ?? null,
+                'lastName' => $validated['last_name'] ?? null,
+                'birthDate' => $validated['birth_date'] ?? null,
+                'plz' => $validated['plz'] ?? null,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $user->fresh()->load('userDetail'),
+        ]);
+    }
     /**
      * Extracted profile-picture storage for reuse.
      */
