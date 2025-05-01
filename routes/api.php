@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ConnectedUserController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UserApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,4 +27,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'show']);
     Route::post('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'update']);
     Route::delete('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'destroy']);
+
+    Route::get('orders/{user}', [OrderController::class, 'show']);
+    Route::post('orders', [OrderController::class, 'storeOrUpdate']);
 });

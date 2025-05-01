@@ -13,7 +13,7 @@ class ConnectedUserController extends Controller
 {
     public function index(User $owner)
     {
-        Log::info('Connected users for owner: ', ['owner_id' => auth()->user()->id ?? null]);
+        // Log::info('Connected users for owner: ', ['owner_id' => auth()->user()->id ?? null]);
         $max = config('connected.max_connected_users');
 
         // fetch only the related users

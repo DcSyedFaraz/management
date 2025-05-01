@@ -64,7 +64,7 @@ class UserApiController extends Controller
             if ($currentCount >= $max) {
                 return response()->json([
                     'message' => "You may only connect up to {$max} users."
-                ], 422);
+                ], 423);
             }
 
             // 3b. No existing → create new with auto-password
