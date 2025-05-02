@@ -10,7 +10,8 @@ class Order extends Model
     protected $casts = [
         'products' => 'array',
         'dispatch_months' => 'array',
-        'reusable_bed_protection' => 'boolean',
+        'reuseable_bed_protection' => 'boolean',
+        'last_dispatch'                => 'date',
     ];
     public function user()
     {

@@ -17,7 +17,6 @@ return new class extends Migration {
             /*  products => { koala_product_id : { amount : int } }  */
             $table->json('products');
             $table->json('dispatch_months')->nullable();
-            $table->boolean('reusable_bed_protection')->default(false);
 
             $table->timestamps();
             $table->unique('user_id');   // one active order per user

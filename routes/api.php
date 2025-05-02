@@ -28,6 +28,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'update']);
     Route::delete('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'destroy']);
 
-    Route::get('orders/{user}', [OrderController::class, 'show']);
-    Route::post('orders', [OrderController::class, 'storeOrUpdate']);
+    Route::get('/orders/{user}', [OrderController::class, 'show']);
+    Route::get('/orders/subscriptions/{user}', [OrderController::class, 'subscriptions']);
+    Route::post('/orders', [OrderController::class, 'storeOrUpdate']);
 });
