@@ -53,8 +53,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    public function getProfilePictureAttribute(?string $value): string
+    public function getProfilePictureAttribute(?string $value)
     {
+        if (empty($value)) {
+            return null;
+        }
         return asset("storage/{$value}");
     }
     public function userDetail()

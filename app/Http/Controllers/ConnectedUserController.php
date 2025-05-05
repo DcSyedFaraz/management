@@ -42,7 +42,7 @@ class ConnectedUserController extends Controller
             'email' => $request->email,
             'password' => bcrypt($request->password),
         ]);
-
+        $newUser->assignRole('user');
         // Attach pivot
         $owner->connectedUsers()->attach($newUser->id);
 

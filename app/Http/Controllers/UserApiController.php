@@ -88,7 +88,7 @@ class UserApiController extends Controller
                 'birthDate' => $validated['birthDate'] ?? null,
                 'plz' => $validated['plz'] ?? null,
             ]);
-
+            $new->assignRole('user');
             // attach pivot
             $owner->connectedUsers()->attach($new->id);
             $connected = $owner->connectedUsers()
