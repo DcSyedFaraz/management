@@ -69,7 +69,7 @@ class UserApiController extends Controller
             $profilePath = $this->storeProfilePicture($request);
 
             $new = User::create([
-                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                'name' => $validated['first_name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($autoPassword),
                 'profile_picture' => $profilePath,
@@ -106,7 +106,7 @@ class UserApiController extends Controller
         $profilePath = $this->storeProfilePicture($request);
 
         $user = User::create([
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'profile_picture' => $profilePath,
@@ -182,7 +182,7 @@ class UserApiController extends Controller
         ]);
 
         $user->update([
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'],
             'email' => $validated['email'],
             'profile_picture' => $newPath,
         ]);
