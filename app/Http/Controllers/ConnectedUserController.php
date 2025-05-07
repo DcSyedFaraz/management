@@ -27,30 +27,6 @@ class ConnectedUserController extends Controller
         ]);
     }
 
-    // Create a new connected user under this owner
-    public function store(Request $request, User $owner)
-    {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:8'],
-        ]);
-
-        // Create the new user
-        $newUser = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-        ]);
-        $newUser->assignRole('user');
-        // Attach pivot
-        $owner->connectedUsers()->attach($newUser->id);
-
-        return response()->json([
-            'id' => $newUser->id,
-            'name' => $newUser->name,
-        ], 201);
-    }
     public function show(User $owner, User $connectedUser)
     {
         // ensure the connectedUser is actually related
@@ -79,6 +55,59 @@ class ConnectedUserController extends Controller
             ],
         ]);
     }
+    // Create a new connected user under this owner
+    public function store(Request $request, User $owner)
+    {
+        $request->validate([
+            'salutation' => ['required', 'string', Rule::in(['mr', 'mrs', 'other'])],
+            'title' => ['nullable', 'string', 'max:50'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'street' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:100'],
+            'birth_date' => ['required', 'date', 'before:today'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string', 'min:8'],
+            'profile_picture' => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        $validated = $request->all();
+
+        // store picture if provided
+        $path = $request->hasFile('profile_picture')
+            ? $request->file('profile_picture')->store('profiles', 'public')
+            : null;
+
+        $new = User::create([
+            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'profile_picture' => $path,
+        ]);
+
+        $new->assignRole('user');
+
+        // build details
+        $new->userDetail()->create([
+            'salutation' => $validated['salutation'],
+            'title' => $validated['title'],
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'street' => $validated['street'],
+            'postal_code' => $validated['postal_code'],
+            'city' => $validated['city'],
+            'birth_date' => $validated['birth_date'],
+        ]);
+
+        $owner->connectedUsers()->attach($new->id);
+
+        return response()->json([
+            'id' => $new->id,
+            'name' => $new->name,
+        ], 201);
+    }
 
     /**
      * PUT /owners/{owner}/connected-users/{connectedUser}
@@ -86,60 +115,59 @@ class ConnectedUserController extends Controller
      */
     public function update(Request $request, User $owner, User $connectedUser)
     {
-        // ensure the connectedUser is actually related
         if (!$owner->connectedUsers()->where('users.id', $connectedUser->id)->exists()) {
             abort(404, 'Not connected');
         }
-        Log::info('Connected user update request', [
-            'user_id' => auth()->user()->id ?? null,
-            'connected_user_id' => $request->all(),
-        ]);
-        // same validation as in register, except unique email ignores this user
+
+        Log::info('Connected user update data:', $request->all());
+
         $rules = [
-            'name' => ['required', 'string', 'max:255'],
+            'salutation' => ['required', 'string', Rule::in(['mr', 'mrs', 'other'])],
+            'title' => ['nullable', 'string', 'max:50'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'street' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:100'],
+            'birth_date' => ['required', 'date', 'before:today'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($connectedUser->id)],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'address' => ['required', 'string', 'max:255'],
-            'insurance_type' => ['nullable', 'string', 'max:100'],
-            'insurance_number' => ['nullable', 'string', 'max:100'],
-            'lastName' => ['nullable', 'string', 'max:20'],
-            'birthDate' => ['nullable', 'string', 'max:20'],
-            'plz' => ['nullable', 'string', 'max:20'],
             'profile_picture' => ['nullable', 'image', 'max:2048'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
         ];
 
         $validated = $request->validate($rules);
 
-        if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profiles', 'public');
-            $validated['profile_picture'] = $path;
-        }
+        // handle picture
+        $path = $request->hasFile('profile_picture')
+            ? $request->file('profile_picture')->store('profiles', 'public')
+            : $connectedUser->profile_picture;
 
-        // update main user record
         $connectedUser->update([
-            'name' => $validated['name'],
+            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
             'email' => $validated['email'],
-            'profile_picture' => $validated['profile_picture'] ?? $connectedUser->profile_picture,
+            'profile_picture' => $path,
         ]);
 
-        // update details
         $connectedUser->userDetail()->updateOrCreate(
             ['user_id' => $connectedUser->id],
             [
-                'phone_number' => $validated['phone_number'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'insurance_type' => $validated['insurance_type'] ?? null,
-                'insurance_number' => $validated['insurance_number'] ?? null,
-                'lastName' => $validated['lastName'] ?? null,
-                'birthDate' => $validated['birthDate'] ?? null,
-                'plz' => $validated['plz'] ?? null,
+                'salutation' => $validated['salutation'],
+                'title' => $validated['title'],
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'street' => $validated['street'],
+                'postal_code' => $validated['postal_code'],
+                'city' => $validated['city'],
+                'birth_date' => $validated['birth_date'],
+                'phone_number' => $validated['phone_number'],
+
             ]
         );
 
         return response()->json([
             'message' => 'Connected user updated successfully.',
             'connected_user' => $connectedUser->fresh()->load('userDetail'),
-        ]);
+        ], 200);
     }
     public function destroy(User $owner, User $connectedUser)
     {

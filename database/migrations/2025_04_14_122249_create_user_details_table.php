@@ -13,13 +13,15 @@ return new class extends Migration {
         Schema::create('user_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('salutation')->nullable();
+            $table->string('title')->nullable();
             $table->string('phone_number')->nullable();
-            $table->string('insurance_type')->nullable();
-            $table->string('insurance_number')->nullable();
-            $table->string('lastName')->nullable();
-            $table->string('birthDate')->nullable();
-            $table->text('address')->nullable();
-            $table->string('plz')->nullable();
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('street')->nullable();
+            $table->string('postal_code')->nullable();
+            $table->string('city')->nullable();
+            $table->date('birth_date')->nullable();
             $table->timestamps();
         });
     }

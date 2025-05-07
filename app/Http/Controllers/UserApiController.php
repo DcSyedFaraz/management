@@ -19,80 +19,80 @@ class UserApiController extends Controller
 {
     public function register(Request $request)
     {
-        // Determine if this request is from an authenticated owner
+        // Is there an authenticated owner? If so, we’re in “add connected user” mode.
         $owner = Auth::user();
         $isAddMode = (bool) $owner;
 
+        // ───── common validation rules ────────────────────────────────
         $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'phone_number' => 'nullable|string|max:50',
-            'address' => 'required|string|max:255',
-            'insurance_type' => 'nullable|string|max:100',
-            'insurance_number' => 'nullable|string|max:100',
-            'lastName' => 'nullable|string|max:20',
-            'birthDate' => 'nullable|string|max:20',
-            'plz' => 'nullable|string|max:20',
-            'profile_picture' => 'nullable|image|max:2048',
+            'salutation' => ['required', 'string', Rule::in(['mr', 'mrs', 'other'])],
+            'title' => ['nullable', 'string', 'max:50'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'street' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:100'],
+            'birth_date' => ['required', 'date', 'before:today'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'profile_picture' => ['nullable', 'image', 'max:2048'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
         ];
 
-        // only for self-registration
+        // ─ only for self-registration ─────────────────────────────────
         if (!$isAddMode) {
-            $rules['password'] = 'required|string|min:8|confirmed';
-            $rules['password_confirmation'] = 'required|string|min:8';
+            $rules['password'] = ['required', 'string', 'min:8', 'confirmed'];
+            $rules['password_confirmation'] = ['required', 'string', 'min:8'];
         }
 
-        // 2. Validate
+        // 1) validate
         try {
             $validated = $request->validate($rules);
         } catch (ValidationException $e) {
             return response()->json([
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         }
 
-        //
-        // 3. If we’re adding a connected user…
-        //
+        // 2) handle connected-user creation
         if ($isAddMode) {
-
-            $max = config('connected.max_connected_users');
-
-            // count how many *already connected* this owner has
+            $maxCount = config('connected.max_connected_users');
             $currentCount = $owner->connectedUsers()->count();
 
-            if ($currentCount >= $max) {
+            if ($currentCount >= $maxCount) {
                 return response()->json([
-                    'message' => "You may only connect up to {$max} users."
+                    'message' => "You may only connect up to {$maxCount} users."
                 ], 423);
             }
 
-            // 3b. No existing → create new with auto-password
+            // auto-generate a password
             $autoPassword = Str::random(10);
             $profilePath = $this->storeProfilePicture($request);
 
             $new = User::create([
-                'name' => $validated['name'],
+                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($autoPassword),
                 'profile_picture' => $profilePath,
             ]);
 
-            // details
+            // persist the detail record
             $new->userDetail()->create([
+                'salutation' => $validated['salutation'],
+                'title' => $validated['title'],
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'street' => $validated['street'],
+                'postal_code' => $validated['postal_code'],
+                'city' => $validated['city'],
+                'birth_date' => $validated['birth_date'],
                 'phone_number' => $validated['phone_number'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'insurance_type' => $validated['insurance_type'] ?? null,
-                'insurance_number' => $validated['insurance_number'] ?? null, // Ensure this handles null
-                'lastName' => $validated['lastName'] ?? null,
-                'birthDate' => $validated['birthDate'] ?? null,
-                'plz' => $validated['plz'] ?? null,
             ]);
+
             $new->assignRole('user');
-            // attach pivot
             $owner->connectedUsers()->attach($new->id);
+
             $connected = $owner->connectedUsers()
-                ->select('users.id as id', 'users.name')    // ← prefix & alias
+                ->select('users.id', 'users.name')
                 ->get();
 
             return response()->json([
@@ -100,39 +100,39 @@ class UserApiController extends Controller
             ], 201);
         }
 
-        //
-        // 4. Self-registration flow
-        //
-        Log::info('User registration data: ', $validated);
+        // 3) self-registration
+        Log::info('User registration data:', $validated);
 
         $profilePath = $this->storeProfilePicture($request);
 
-        // create user
         $user = User::create([
-            'name' => $validated['name'],
+            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'profile_picture' => $profilePath,
         ]);
 
-        // details
         $user->userDetail()->create([
+            'salutation' => $validated['salutation'],
+            'title' => $validated['title'],
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
             'phone_number' => $validated['phone_number'] ?? null,
-            'insurance_type' => $validated['insurance_type'] ?? null,
-            'insurance_number' => $validated['insurance_number'] ?? null,
-            'plz' => $validated['plz'] ?? null,
-            'birthDate' => $validated['birthDate'] ?? null,
-            'lastName' => $validated['lastName'] ?? null,
-            'address' => $validated['address'] ?? null,
+            'street' => $validated['street'],
+            'postal_code' => $validated['postal_code'],
+            'city' => $validated['city'],
+            'birth_date' => $validated['birth_date'],
         ]);
 
-        // OTP generation
+        // OTP generation & mail
         $otp = random_int(1000, 9999);
-        $expiry = Carbon::now()->addMinutes(10);
+        $expires = Carbon::now()->addMinutes(10);
+
         $user->update([
             'email_otp' => $otp,
-            'otp_expires_at' => $expiry,
+            'otp_expires_at' => $expires,
         ]);
+
         $user->assignRole('user');
         Mail::to($user->email)->send(new OtpMail($user, $otp));
 
@@ -140,68 +140,73 @@ class UserApiController extends Controller
             'message' => 'Registration successful. Check your email for the OTP.'
         ], 201);
     }
+
+    /**
+     * PUT /user/{user}
+     * Update a self-registered user’s profile.
+     */
     public function update(Request $request, User $user)
     {
-        // ensure user can only update themselves (or else use a policy)
+        // ensure only the owner can update themselves
         if (Auth::id() !== $user->id) {
             abort(403, 'Unauthorized');
         }
-        log::info('User update data: ', $request->all());
-        // validation rules
+
+        Log::info('User update data (raw):', $request->all());
+
         $rules = [
-            'name' => ['required', 'string', 'max:255'],
+            'salutation' => ['required', 'string', Rule::in(['mr', 'mrs', 'other'])],
+            'title' => ['nullable', 'string', 'max:50'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'street' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:100'],
+            'birth_date' => ['required', 'date', 'before:today'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone_number' => ['nullable', 'string', 'max:50'],
-            'address' => ['required', 'string', 'max:255'],
-            'insurance_type' => ['nullable', 'string', 'max:100'],
-            'insurance_number' => ['nullable', 'string', 'max:100'],
-            'last_name' => ['nullable', 'string', 'max:20'],
-            'birth_date' => ['nullable', 'string', 'max:20'],
-            'plz' => ['nullable', 'string', 'max:20'],
             'profile_picture' => ['nullable', 'image', 'max:2048'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
         ];
 
         $validated = $request->validate($rules);
 
+        // handle profile picture storage
         $oldPath = $user->getRawOriginal('profile_picture');
-
-        // Determine the new raw path
         $newPath = $request->hasFile('profile_picture')
             ? $this->storeProfilePicture($request)
             : $oldPath;
 
-        // Log the raw values
-        Log::info('User profile_picture update (raw paths)', [
-            'user_id' => $user->id,
-            'old_profile_picture' => $oldPath,
-            'new_profile_picture' => $newPath,
+        Log::info('Profile picture raw paths:', [
+            'old' => $oldPath,
+            'new' => $newPath,
         ]);
 
-        // Persist the change (the accessor will still return URLs elsewhere)
         $user->update([
-            'name' => $validated['name'],
+            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
             'email' => $validated['email'],
             'profile_picture' => $newPath,
         ]);
 
-        // update or create the related details row
+        // upsert detail row
         $user->userDetail()->updateOrCreate(
             ['user_id' => $user->id],
             [
                 'phone_number' => $validated['phone_number'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'insurance_type' => $validated['insurance_type'] ?? null,
-                'insurance_number' => $validated['insurance_number'] ?? null,
-                'lastName' => $validated['last_name'] ?? null,
-                'birthDate' => $validated['birth_date'] ?? null,
-                'plz' => $validated['plz'] ?? null,
+                'salutation' => $validated['salutation'],
+                'title' => $validated['title'],
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'street' => $validated['street'],
+                'postal_code' => $validated['postal_code'],
+                'city' => $validated['city'],
+                'birth_date' => $validated['birth_date'],
             ]
         );
 
         return response()->json([
             'message' => 'Profile updated successfully.',
             'user' => $user->fresh()->load('userDetail'),
-        ]);
+        ], 200);
     }
     /**
      * Extracted profile-picture storage for reuse.
