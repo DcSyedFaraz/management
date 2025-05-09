@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Log;
 
 class OrderController extends Controller
 {
@@ -73,6 +74,14 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Order saved successfully.',
             'order' => $order,
+        ]);
+    }
+    public function FormData(Request $request)
+    {
+        Log::info('FormData', $request->all());
+
+        return response()->json([
+            'message' => 'Order saved successfully.',
         ]);
     }
 }

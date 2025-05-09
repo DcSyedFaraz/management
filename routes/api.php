@@ -31,4 +31,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/orders/{user}', [OrderController::class, 'show']);
     Route::get('/orders/subscriptions/{user}', [OrderController::class, 'subscriptions']);
     Route::post('/orders', [OrderController::class, 'storeOrUpdate']);
+    Route::post('/orders/form-Data', [OrderController::class, 'FormData']);
 });
