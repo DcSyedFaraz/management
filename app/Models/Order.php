@@ -8,10 +8,14 @@ class Order extends Model
 {
     protected $guarded = [];
     protected $casts = [
+        'versicherter' => 'array',
+        'address' => 'array',
+        'antragsteller' => 'array',
         'products' => 'array',
         'dispatch_months' => 'array',
         'reuseable_bed_protection' => 'boolean',
-        'last_dispatch'                => 'date',
+        'changeProvider' => 'boolean',
+        'last_dispatch' => 'date',
     ];
     public function user()
     {
