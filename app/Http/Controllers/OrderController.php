@@ -66,7 +66,7 @@ class OrderController extends Controller
                 'requestBedPads' => ['nullable', 'boolean'],
                 'deliveryAddress' => ['required', 'string'],
                 'applicationReceipt' => ['required', 'string'],
-                'awarenessSource' => ['required', 'string'],
+                'awarenessSource' => ['nullable', 'string'],
                 'consultation_check' => ['nullable', 'integer'],
                 'products' => ['required', 'array', 'min:1'],
             ]);
