@@ -55,6 +55,21 @@ class ConnectedUserController extends Controller
             ],
         ]);
     }
+    public function details($id)
+    {
+        $user = User::findOrFail($id);
+        // send with userdetails
+        $user->load('userDetail');
+        Log::info('Connected user details:', [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]);
+        return response()->json($user->only(['id', 'name', 'email']) + [
+            'details' => $user->userDetail,
+        ]);
+
+    }
     // Create a new connected user under this owner
     public function store(Request $request, User $owner)
     {

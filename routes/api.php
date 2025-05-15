@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('/owners/users/{user}', [UserApiController::class, 'update']);
 
+    Route::get('/owners/{owner}/show', [ConnectedUserController::class, 'details']);
     Route::get('/owners/{owner}/connected-users', [ConnectedUserController::class, 'index']);
     Route::post('/owners/{owner}/connected-users', [UserApiController::class, 'register']);
     Route::get('/owners/{owner}/connected-users/{connectedUser}', [ConnectedUserController::class, 'show']);
