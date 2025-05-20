@@ -96,7 +96,7 @@ class ConnectedUserController extends Controller
             : null;
 
         $new = User::create([
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'],
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
             'profile_picture' => $path,
@@ -158,7 +158,7 @@ class ConnectedUserController extends Controller
             : $connectedUser->profile_picture;
 
         $connectedUser->update([
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => $validated['first_name'],
             'email' => $validated['email'],
             'profile_picture' => $path,
         ]);
