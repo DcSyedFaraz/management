@@ -26,7 +26,7 @@ class ForgotPasswordOtpMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('Ihr Passwort‑Rücksetzcode')
+            ->subject(__('messages.reset_password.subject'))
             ->view('emails.reset_otp')
             ->with(['otp' => $this->otp]);
     }
