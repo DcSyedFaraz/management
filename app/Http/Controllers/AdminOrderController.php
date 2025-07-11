@@ -30,10 +30,27 @@ class AdminOrderController extends Controller
             'reuseable_bed_protection' => ['nullable', 'boolean'],
             'beantrager' => ['nullable', 'string'],
             'sign' => ['nullable', 'string'],
-            'geburtsdatum' => ['nullable', 'string'],
-            'versicherter' => ['nullable'],
-            'address' => ['nullable'],
-            'antragsteller' => ['nullable'],
+            'geburtsdatum' => ['nullable', 'date'],
+
+            // JSON groups as arrays
+            'versicherter' => ['nullable', 'array'],
+            'versicherter.anrede' => ['nullable', 'string'],
+            'versicherter.titel' => ['nullable', 'string'],
+            'versicherter.vorname' => ['nullable', 'string'],
+            'versicherter.nachname' => ['nullable', 'string'],
+            'versicherter.strasse' => ['nullable', 'string'],
+            'versicherter.stadt' => ['nullable', 'string'],
+            'versicherter.plz' => ['nullable', 'string'],
+            'versicherter.land' => ['nullable', 'string'],
+            'versicherter.email' => ['nullable', 'email'],
+            'versicherter.telefon' => ['nullable', 'string'],
+
+            'address' => ['nullable', 'array'],
+            'address.*' => ['nullable', 'string'],
+
+            'antragsteller' => ['nullable', 'array'],
+            'antragsteller.*' => ['nullable', 'string'],
+
             'insuranceType' => ['nullable', 'string'],
             'insuranceProvider' => ['nullable', 'string'],
             'insuranceNumber' => ['nullable', 'string'],
@@ -45,24 +62,36 @@ class AdminOrderController extends Controller
             'applicationReceipt' => ['nullable', 'string'],
             'awarenessSource' => ['nullable', 'string'],
             'consultation_check' => ['nullable', 'integer'],
-            'products' => ['nullable'],
-            'dispatch_months' => ['nullable'],
+
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'required|string',
+            'product_amounts' => 'required|array',
+            'product_amounts.*' => 'required|integer|min:1',
+
+            'dispatch_months' => ['nullable', 'array'],
+            'dispatch_months.*' => ['integer', 'between:1,12'],
         ]);
 
+        $products = [];
+        foreach ($data['product_ids'] as $i => $id) {
+            $products[$id] = ['amount' => $data['product_amounts'][$i]];
+        }
+        $data['products'] = $products;
+        // dd($data['products']);
+        unset($data['product_ids']);
+        unset($data['product_amounts']);
+
+        // Cast booleans explicitly
         $data['changeProvider'] = $request->boolean('changeProvider');
         $data['requestBedPads'] = $request->boolean('requestBedPads');
         $data['reuseable_bed_protection'] = $request->boolean('reuseable_bed_protection');
         $data['isSameAsContact'] = $request->boolean('isSameAsContact');
 
-        foreach (['versicherter', 'address', 'antragsteller', 'products', 'dispatch_months'] as $jsonField) {
-            if ($request->filled($jsonField)) {
-                $data[$jsonField] = json_decode($request->input($jsonField), true) ?? [];
-            }
-        }
-
+        // No manual JSON decoding needed: Laravel model casts will handle arrays -> JSON
         $order->update($data);
 
-        return redirect()->route('orders.edit', $order->id)
+        return redirect()
+            ->route('orders.edit', $order->id)
             ->with('success', 'Order updated successfully');
     }
 

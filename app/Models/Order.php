@@ -13,9 +13,13 @@ class Order extends Model
         'antragsteller' => 'array',
         'products' => 'array',
         'dispatch_months' => 'array',
+        'last_dispatch' => 'date',
+        'geburtsdatum' => 'date:d.m.Y',
         'reuseable_bed_protection' => 'boolean',
         'changeProvider' => 'boolean',
-        'last_dispatch' => 'date',
+        'requestBedPads' => 'boolean',
+        'isSameAsContact' => 'boolean',
+        'consultation_check' => 'boolean',
     ];
     public function user()
     {

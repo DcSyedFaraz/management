@@ -54,6 +54,7 @@
     <!--! Toastr -->
     <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css">
+    @yield('styles')
 </head>
 
 <body>
@@ -233,7 +234,9 @@
             @endforeach
         @endif
     </script>
-
+@yield('scripts')
+    <!-- Place this tag in your head or just before your close body tag. -->
+    {{-- <script async defer src="https://buttons.github.io/buttons.js"></script> --}}
 </body>
 
 </html>
