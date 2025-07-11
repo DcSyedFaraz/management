@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminOrderController;
 use Illuminate\Support\Facades\Route;
 
 require __DIR__ . '/auth.php';
@@ -28,4 +29,6 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::resource('users', UserController::class);
+    Route::resource('orders', AdminOrderController::class)->only(['index','edit','update']);
+    Route::delete('orders/{order}/connected-users/{user}', [AdminOrderController::class, 'detachConnectedUser'])->name('orders.detach_user');
 });

@@ -70,6 +70,12 @@
                 <div data-i18n="Basic">User</div>
             </a>
         </li>
+        <li class="menu-item {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+            <a href="{{ route('orders.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bxs-receipt"></i>
+                <div data-i18n="Orders">Orders</div>
+            </a>
+        </li>
         <li class="menu-item ">
             <a class="menu-link" href="{{ route('logout') }}"
                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
@@ -85,3 +91,4 @@
 
     </ul>
 </aside>
+
