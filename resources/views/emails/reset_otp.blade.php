@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Passwort zurücksetzen</title>
+    <title>{{ __('messages.reset_password.title') }}</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -108,21 +108,19 @@
                 <div class="logo">
                     <span class="logo-icon">🔒</span>
                 </div>
-                <h1>Passwort zurücksetzen</h1>
+                <h1>{{ __('messages.reset_password.title') }}</h1>
             </div>
 
             <div class="content">
-                <p>Sehr geehrter Nutzer,</p>
-                <p>Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts gestellt. Bitte verwenden Sie den folgenden
-                    Code, um den Vorgang abzuschließen:</p>
+                <p>{{ __('messages.reset_password.greeting') }}</p>
+                <p>{{ __('messages.reset_password.intro') }}</p>
 
                 <div class="otp-code">{{ $otp }}</div>
 
-                <p>Aus Sicherheitsgründen ist dieser Code zeitlich begrenzt:</p>
-                <div class="expiry">⏱️ Gültig für 10 Minuten</div>
+                <p>{{ __('messages.reset_password.security') }}</p>
+                <div class="expiry">{{ __('messages.reset_password.valid_for') }}</div>
 
-                <p style="margin-top: 25px;">Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail
-                    ignorieren oder uns kontaktieren, wenn Sie vermuten, dass Ihr Konto kompromittiert wurde.</p>
+                <p style="margin-top: 25px;">{{ __('messages.reset_password.footer') }}</p>
             </div>
 
             <div class="footer">

@@ -397,7 +397,7 @@ class UserApiController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Passwort erfolgreich zurückgesetzt.',
+            'message' => __('messages.reset_password.success'),
         ], 200);
     }
 }
