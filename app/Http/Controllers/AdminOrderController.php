@@ -60,6 +60,7 @@ class AdminOrderController extends Controller
             'isSameAsContact' => ['nullable', 'boolean'],
             'deliveryAddress' => ['nullable', 'string'],
             'applicationReceipt' => ['nullable', 'string'],
+            'consultation_reason' => ['nullable', 'string'],
             'awarenessSource' => ['nullable', 'string'],
             'consultation_check' => ['nullable', 'integer'],
 
